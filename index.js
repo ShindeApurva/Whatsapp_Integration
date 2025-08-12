@@ -20,7 +20,7 @@ app.post("/webhook", async (req, res) => {
     (async () => {
       try {
         await axios.post(
-          "http://52.187.0.115:49656/WhatsAppAPI/ReciveMessage/Messages",
+          "http://52.187.0.115:80/WhatsAppAPI/ReciveMessage/Messages",
           bodyPost,
           {
             headers: { "Content-Type": "application/json" },
