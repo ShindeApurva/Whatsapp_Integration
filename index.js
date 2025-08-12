@@ -33,19 +33,18 @@ app.post("/webhook", async (req, res) => {
         console.error("There was a problem with the request:", error);
       });
 
-    await axios({
-      method: "POST",
-      url: https://graph.facebook.com/v22.0/${business_phone_number_id}/messages,
-      headers: {
-        Authorization: Bearer ${GRAPH_API_TOKEN},
-      },
-      data: {
-        messaging_product: "whatsapp",
-        status: "read",
-        message_id: message.id,
-      },
-    });
-  }
+   await axios({
+        method: "POST",
+        url: `https://graph.facebook.com/v22.0/${business_phone_number_id}/messages`,
+        headers: {
+          Authorization: `Bearer ${GRAPH_API_TOKEN}`,
+        },
+        data: {
+          messaging_product: "whatsapp",
+          status: "read",
+          message_id: message.id,
+        },
+      });
 
   res.sendStatus(200);
 });
