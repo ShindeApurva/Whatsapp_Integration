@@ -18,7 +18,7 @@ app.post("/webhook", async (req, res) => {
 
     axios
       .post(
-        "https:/52.187.0.115:49656/WhatsappAPI/ReciveMessage/Messages",
+        "https:/52.187.0.115:49656/WhatsAppAPI/ReciveMessage/Messages",
         bodyPost,
         {
           headers: {
