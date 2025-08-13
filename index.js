@@ -6,56 +6,67 @@ app.use(express.json());
 
 const { WEBHOOK_VERIFY_TOKEN, GRAPH_API_TOKEN, PORT } = process.env;
 
-app.post("/webhook", async (req, res) => {
-  console.log("Incoming webhook message:", JSON.stringify(req.body, null, 2));
+// ----------------------------
+// WhatsApp Webhook - POST
+// ----------------------------
+app.post("/webhook", (req, res) => {
+  // Log everything for debugging
+  console.log("✅ Incoming webhook message:", JSON.stringify(req.body, null, 2));
 
+  // Respond immediately to WhatsApp to avoid timeout / missing blue tick
+  res.sendStatus(200);
+
+  // Extract message safely
   const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+  const business_phone_number_id =
+    req.body.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
 
-  if (message?.type === "text") {
-    const business_phone_number_id =
-      req.body.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
-    const bodyPost = JSON.stringify(req.body, null, 2);
+  if (!message) return; // no message, nothing to process
 
-    // Fire-and-forget to your API
+  // Fire-and-forget internal API call
+  (async () => {
+    try {
+      await axios.post(
+        "http://52.187.0.115:80/WhatsAppAPI/ReciveMessage/Messages",
+        JSON.stringify(req.body, null, 2),
+        {
+          headers: { "Content-Type": "application/json" },
+          timeout: 3000, // 3s timeout
+        }
+      );
+      console.log("✅ Internal API call successful");
+    } catch (error) {
+      console.error("⚠️ Internal API call failed:", error.message);
+    }
+  })();
+
+  // Send read receipt (blue tick) if message is text or template
+  if (message.type === "text" || message.type === "template") {
     (async () => {
       try {
         await axios.post(
-          "http://52.187.0.115:80/WhatsAppAPI/ReciveMessage/Messages",
-          bodyPost,
+          `https://graph.facebook.com/v22.0/${business_phone_number_id}/messages`,
           {
-            headers: { "Content-Type": "application/json" },
-            timeout: 3000, // 3s timeout so it doesn't hang
+            messaging_product: "whatsapp",
+            status: "read",
+            message_id: message.id,
+          },
+          {
+            headers: { Authorization: `Bearer ${GRAPH_API_TOKEN}` },
+            timeout: 3000,
           }
         );
-        console.log("Internal API call successful");
+        console.log("✅ Blue tick (read receipt) sent");
       } catch (error) {
-        console.error("Internal API call failed:", error.message);
+        console.error("⚠️ Failed to send blue tick:", error.message);
       }
     })();
-
-    // Send read receipt to WhatsApp
-    try {
-      await axios.post(
-        `https://graph.facebook.com/v22.0/${business_phone_number_id}/messages`,
-        {
-          messaging_product: "whatsapp",
-          status: "read",
-          message_id: message.id,
-        },
-        {
-          headers: { Authorization: `Bearer ${GRAPH_API_TOKEN}` },
-        }
-      );
-      console.log("Blue tick (read receipt) sent");
-    } catch (error) {
-      console.error("Failed to send blue tick:", error.message);
-    }
   }
-
-  // Respond to WhatsApp immediately to avoid timeout
-  res.sendStatus(200);
 });
 
+// ----------------------------
+// WhatsApp Webhook - GET (Verification)
+// ----------------------------
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -63,16 +74,23 @@ app.get("/webhook", (req, res) => {
 
   if (mode === "subscribe" && token === WEBHOOK_VERIFY_TOKEN) {
     res.status(200).send(challenge);
-    console.log("Webhook verified successfully!");
+    console.log("✅ Webhook verified successfully!");
   } else {
     res.sendStatus(403);
   }
 });
 
+// ----------------------------
+// Health / Root Endpoint
+// ----------------------------
 app.get("/", (req, res) => {
   res.send(`<pre>Nothing to see here.\nCheckout README.md to start.</pre>`);
 });
 
-app.listen(PORT || 3000, () => {
-  console.log(`Server is listening on port: ${PORT || 3000}`);
+// ----------------------------
+// Start server with dynamic port
+// ----------------------------
+const listenPort = PORT || 3000;
+app.listen(listenPort, () => {
+  console.log(`✅ Server is listening on port: ${listenPort}`);
 });
